@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/logo.png" alt="Italtecnica" width="320">
+</p>
+
 # Sirio Pump Inverter (WiNET) — Home Assistant Integration
 
 Local-polling Home Assistant integration for **Italtecnica Sirio** pump inverters
