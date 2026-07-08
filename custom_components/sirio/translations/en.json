@@ -1,0 +1,20 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Sirio Pump Inverter",
+        "description": "Enter the IP address of the WiNET module. Repeat this step for each inverter you own.",
+        "data": {
+          "host": "IP address",
+          "name": "Device name"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Cannot connect to the device. Check the IP address and that the inverter is powered on."
+    },
+    "abort": {
+      "already_configured": "This device is already configured."
+    }
+  }
+}
