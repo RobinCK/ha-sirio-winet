@@ -8,7 +8,7 @@
 (() => {
   const CARD_TAG = "sirio-pump-card";
   const EDITOR_TAG = "sirio-pump-card-editor";
-  const CARD_VERSION = "0.2.0";
+  const CARD_VERSION = "0.2.2";
 
   if (customElements.get(CARD_TAG)) {
     return;
@@ -412,17 +412,19 @@
     /* ------------------------------------------------------------- tiles */
     .tiles {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
-      gap: 8px;
+      grid-auto-flow: column;
+      grid-auto-columns: 1fr;
+      gap: 6px;
       margin-top: 14px;
     }
     .tile {
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 3px;
-      padding: 10px 6px 8px;
-      border-radius: 16px;
+      gap: 2px;
+      min-width: 0;
+      padding: 8px 4px 7px;
+      border-radius: 14px;
       background: var(--spc-soft);
       background: color-mix(in srgb, var(--primary-text-color) 5%, transparent);
       transition: transform 0.12s ease, background 0.2s ease;
@@ -431,8 +433,8 @@
     .tile:active { transform: scale(0.95); }
     .tile[hidden] { display: none; }
     .tico {
-      width: 32px;
-      height: 32px;
+      width: 26px;
+      height: 26px;
       border-radius: 50%;
       display: flex;
       align-items: center;
@@ -441,22 +443,25 @@
       background: rgba(127, 127, 127, 0.12);
       background: color-mix(in srgb, var(--tc, var(--primary-color)) 14%, transparent);
     }
-    .tico ha-icon { --mdc-icon-size: 18px; }
+    .tico ha-icon { --mdc-icon-size: 15px; }
     .tv {
-      font-size: 15px;
+      font-size: 13px;
       font-weight: 600;
       color: var(--primary-text-color);
       font-variant-numeric: tabular-nums;
       white-space: nowrap;
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     .tv .u {
-      font-size: 11px;
+      font-size: 10px;
       font-weight: 500;
       color: var(--secondary-text-color);
       margin-left: 2px;
     }
     .tl {
-      font-size: 11px;
+      font-size: 10px;
       color: var(--secondary-text-color);
       white-space: nowrap;
       overflow: hidden;
@@ -506,9 +511,6 @@
     .placeholder[hidden] { display: none; }
     [hidden] { display: none; }
 
-    @media (max-width: 360px) {
-      .tiles { grid-template-columns: repeat(2, 1fr); }
-    }
     @media (prefers-reduced-motion: reduce) {
       .gauge .val { transition: none; }
       :host([data-status="running"]) .gauge .flow,
