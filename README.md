@@ -151,6 +151,17 @@ by the integration and registered with the frontend automatically, so there is
 nothing to add under *Settings → Dashboards → Resources* and no separate HACS
 frontend repository to install.
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/card-desktop-dark.png">
+  <img alt="Sirio Pump Card on a desktop dashboard — running, standby and error states" src="docs/screenshots/card-desktop-light.png">
+</picture>
+
+<p align="center">
+  <img alt="Sirio Pump Card on mobile — light theme" src="docs/screenshots/card-mobile-light.png" width="300">
+  &nbsp;
+  <img alt="Sirio Pump Card on mobile — dark theme" src="docs/screenshots/card-mobile-dark.png" width="300">
+</p>
+
 What you get:
 
 - **Status header** — pump name with a live state pill (Running / Idle /
