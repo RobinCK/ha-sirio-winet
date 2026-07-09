@@ -1,9 +1,9 @@
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 from homeassistant.components import frontend
-from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST, CONF_NAME, Platform
 from homeassistant.core import HomeAssistant
@@ -15,6 +15,13 @@ from .api import SirioApi
 from .const import DOMAIN
 from .coordinator import SirioCoordinator
 
+try:  # HA 2024.6+
+    from homeassistant.components.http import StaticPathConfig
+except ImportError:
+    StaticPathConfig = None
+
+_LOGGER = logging.getLogger(__name__)
+
 PLATFORMS = [Platform.BINARY_SENSOR, Platform.SENSOR, Platform.SWITCH]
 
 CARD_FILENAME = "sirio-pump-card.js"
@@ -23,19 +30,27 @@ CARD_URL = f"/{DOMAIN}/{CARD_FILENAME}"
 type SirioConfigEntry = ConfigEntry[SirioCoordinator]
 
 
-async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
-    """Serve the bundled Lovelace card and register it with the frontend."""
+async def _async_register_card(hass: HomeAssistant) -> None:
+    """Serve the bundled Lovelace card and load it on every dashboard."""
+    card_path = str(Path(__file__).parent / "frontend" / CARD_FILENAME)
+    if StaticPathConfig is not None and hasattr(
+        hass.http, "async_register_static_paths"
+    ):
+        await hass.http.async_register_static_paths(
+            [StaticPathConfig(CARD_URL, card_path, cache_headers=True)]
+        )
+    else:  # pre-2024.6 cores
+        hass.http.register_static_path(CARD_URL, card_path, cache_headers=True)
     integration = await async_get_integration(hass, DOMAIN)
-    await hass.http.async_register_static_paths(
-        [
-            StaticPathConfig(
-                CARD_URL,
-                str(Path(__file__).parent / "frontend" / CARD_FILENAME),
-                cache_headers=True,
-            )
-        ]
-    )
     frontend.add_extra_js_url(hass, f"{CARD_URL}?v={integration.version}")
+    _LOGGER.info("Sirio Pump Card registered at %s", CARD_URL)
+
+
+async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
+    try:
+        await _async_register_card(hass)
+    except Exception:  # noqa: BLE001 - the card must never block device setup
+        _LOGGER.exception("Failed to register the bundled Lovelace card")
     return True
 
 

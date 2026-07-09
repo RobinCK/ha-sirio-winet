@@ -221,6 +221,17 @@ change — stale data can never flip the pump the wrong way.
 
 ## Troubleshooting
 
+- **Card not found in the picker / "Custom element doesn't exist:
+  sirio-pump-card"** — check in this order:
+  1. Open `http://<ha-host>:8123/sirio/sirio-pump-card.js` in a browser. A
+     **404** means the backend is not serving the card yet: make sure HACS
+     actually downloaded the new version (HACS → integration → ⋮ → *Update
+     information*, then *Redownload*) and **fully restart** Home Assistant — a
+     config-entry reload is not enough, the card is registered at startup.
+  2. If the JS file opens, the problem is browser cache: hard-refresh
+     (Ctrl/Cmd+Shift+R) or, in the companion app, *Settings → Companion app →
+     Debugging → Reset frontend cache*. The browser console should then show a
+     `SIRIO-PUMP-CARD` banner.
 - **"Cannot connect" during setup** — check that the IP is correct and that
   `http://<ip>/management.html` opens from the Home Assistant host's network.
 - **Entities become unavailable intermittently** — the WiNET Wi-Fi signal may be
