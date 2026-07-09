@@ -3,6 +3,7 @@
   "name": "Sirio Pump Inverter (WiNET)",
   "codeowners": ["@igorognichenko"],
   "config_flow": true,
+  "dependencies": ["frontend", "http"],
   "documentation": "https://github.com/igorognichenko/ha-sirio-winet",
   "integration_type": "device",
   "iot_class": "local_polling",

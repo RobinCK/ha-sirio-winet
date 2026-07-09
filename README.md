@@ -18,6 +18,9 @@ to the inverter's built-in web server on your LAN.
 - **Binary sensors:** error (problem), standby, motor running.
 - **Switch:** pump on/off (standby toggle) with stale-state protection — the
   command is sent only after re-reading the actual device state.
+- **Bundled Lovelace card** (`custom:sirio-pump-card`) — an animated pressure
+  gauge with status, one-tap power control and key metrics, registered
+  automatically (no manual resource setup). See [Lovelace card](#lovelace-card).
 - When the inverter stops responding, all its entities become `unavailable`,
   which you can use as an "offline" alert trigger.
 
@@ -141,7 +144,52 @@ automation:
           message: "The pump inverter is not responding."
 ```
 
-## Dashboard example
+## Lovelace card
+
+The integration ships its own dashboard card — **Sirio Pump Card**. It is served
+by the integration and registered with the frontend automatically, so there is
+nothing to add under *Settings → Dashboards → Resources* and no separate HACS
+frontend repository to install.
+
+What you get:
+
+- **Status header** — pump name with a live state pill (Running / Idle /
+  Standby / Error / Offline) and an animated pump icon.
+- **Pressure gauge** — animated arc with the current pressure, scale ticks and
+  a setpoint marker; a "flowing water" effect while the motor runs.
+- **One-tap power button** with a busy spinner until the inverter confirms the
+  new state.
+- **Metric tiles** — current, voltage, frequency, temperature; **chips** —
+  running hours, start count, Wi-Fi signal. Hidden automatically if the entity
+  is disabled.
+- **Error banner** with the active error code when the inverter reports a
+  problem.
+- Every element is **clickable** and opens the entity's more-info dialog
+  (history, statistics, settings).
+- **Mobile-friendly and theme-aware** — adapts to narrow screens, light/dark
+  themes, honors `prefers-reduced-motion`; UI in English and Ukrainian.
+
+### Adding the card
+
+1. Open your dashboard → **Edit** → **+ Add card**.
+2. Search for **Sirio Pump Card** (it appears in the picker with a live
+   preview).
+3. Pick your pump device in the visual editor. Done.
+
+Or in YAML:
+
+```yaml
+type: custom:sirio-pump-card
+device: 1234567890abcdef1234567890abcdef  # device id, picked via the UI editor
+# entity: switch.well_pump_pump          # ...or any entity of the pump instead
+# name: Well Pump                        # optional header override
+```
+
+> The card is loaded after the integration starts. If it does not appear in the
+> card picker right after an update, hard-refresh the browser
+> (Ctrl/Cmd+Shift+R) or clear the app cache in the mobile app.
+
+### Plain entities card (alternative)
 
 ```yaml
 type: entities
