@@ -228,6 +228,21 @@ change — stale data can never flip the pump the wrong way.
 - **Switch does not change state immediately** — the state refreshes on the next
   poll cycle (up to 10 s).
 
+## Integration icon
+
+Home Assistant and HACS do not read integration icons from this repository —
+they serve them from the central
+[home-assistant/brands](https://github.com/home-assistant/brands) repository by
+integration domain (`sirio`). Ready-to-submit assets live in
+[`brands/custom_integrations/sirio`](brands/custom_integrations/sirio):
+`icon.png` (256×256), `icon@2x.png` (512×512) and dark-theme variants.
+
+To get the icon displayed, copy that folder into a fork of
+`home-assistant/brands` as `custom_integrations/sirio/` and open a pull
+request. Once it is merged, the icon appears in Home Assistant and HACS
+automatically — no integration update or restart needed (allow up to a day for
+CDN/browser caches).
+
 ## Development
 
 Run the unit tests:
