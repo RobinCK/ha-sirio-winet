@@ -30,6 +30,38 @@ CARD_URL = f"/{DOMAIN}/{CARD_FILENAME}"
 type SirioConfigEntry = ConfigEntry[SirioCoordinator]
 
 
+async def _async_register_resource(hass: HomeAssistant, url: str) -> bool:
+    """Ensure the card is listed in the Lovelace resource registry.
+
+    Unlike extra_js_url (baked into the service-worker-cached app shell),
+    resources are fetched dynamically on every dashboard load, so mobile
+    clients pick the card up after a plain page reload.
+    """
+    lovelace = hass.data.get("lovelace")
+    if lovelace is None:
+        return False
+    if isinstance(lovelace, dict):  # pre-2024 cores
+        mode = lovelace.get("mode")
+        resources = lovelace.get("resources")
+    else:
+        mode = getattr(lovelace, "mode", None)
+        resources = getattr(lovelace, "resources", None)
+    if mode != "storage" or resources is None:
+        return False
+    if not getattr(resources, "loaded", True):
+        await resources.async_load()
+        resources.loaded = True
+    for item in resources.async_items():
+        item_url = item.get("url", "")
+        if item_url.partition("?")[0] != CARD_URL:
+            continue
+        if item_url != url:  # refresh the cache-busting version
+            await resources.async_update_item(item["id"], {"url": url})
+        return True
+    await resources.async_create_item({"res_type": "module", "url": url})
+    return True
+
+
 async def _async_register_card(hass: HomeAssistant) -> None:
     """Serve the bundled Lovelace card and load it on every dashboard."""
     card_path = str(Path(__file__).parent / "frontend" / CARD_FILENAME)
@@ -42,8 +74,20 @@ async def _async_register_card(hass: HomeAssistant) -> None:
     else:  # pre-2024.6 cores
         hass.http.register_static_path(CARD_URL, card_path, cache_headers=True)
     integration = await async_get_integration(hass, DOMAIN)
-    frontend.add_extra_js_url(hass, f"{CARD_URL}?v={integration.version}")
-    _LOGGER.info("Sirio Pump Card registered at %s", CARD_URL)
+    versioned_url = f"{CARD_URL}?v={integration.version}"
+    in_resources = False
+    try:
+        in_resources = await _async_register_resource(hass, versioned_url)
+    except Exception:  # noqa: BLE001 - registry APIs differ between cores
+        _LOGGER.debug("Could not manage Lovelace resources", exc_info=True)
+    if not in_resources:
+        # YAML-mode dashboards (or very old cores): fall back to extra_js_url.
+        frontend.add_extra_js_url(hass, versioned_url)
+    _LOGGER.info(
+        "Sirio Pump Card registered at %s (lovelace resource: %s)",
+        CARD_URL,
+        in_resources,
+    )
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
