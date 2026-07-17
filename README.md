@@ -177,6 +177,8 @@ What you get:
   problem.
 - Every element is **clickable** and opens the entity's more-info dialog
   (history, statistics, settings).
+- **Offline-safe** — if the inverter drops off Wi-Fi the card shows an
+  *Offline* state instead of erroring out, and never crashes the dashboard.
 - **Mobile-friendly and theme-aware** — adapts to narrow screens, light/dark
   themes, honors `prefers-reduced-motion`; UI in English and Ukrainian.
 
@@ -229,6 +231,13 @@ The integration polls `get-registers` every 10 seconds and `get-status` roughly
 once a minute. Because `key=011` is a *toggle*, the switch first re-reads the
 actual `standBy` state and only sends the command when the state really needs to
 change — stale data can never flip the pump the wrong way.
+
+When the inverter becomes unreachable (its Wi-Fi drops, for example) the poller
+**backs off exponentially** — 10 s → 20 → 40 → 80 → 120 s (capped) — instead of
+hammering the network every 10 seconds, and returns to the normal 10 s rhythm on
+the first successful poll. This keeps the log clean and the network quiet during
+outages. Entities still go `unavailable` on the first failure, so offline alerts
+keep working.
 
 ## Troubleshooting
 

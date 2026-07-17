@@ -8,7 +8,7 @@
 (() => {
   const CARD_TAG = "sirio-pump-card";
   const EDITOR_TAG = "sirio-pump-card-editor";
-  const CARD_VERSION = "0.2.2";
+  const CARD_VERSION = "0.2.4";
 
   if (customElements.get(CARD_TAG)) {
     return;
@@ -706,12 +706,13 @@
         return null;
       }
       const roles = { deviceId };
+      const states = this._hass.states || {};
       for (const reg of Object.values(this._hass.entities || {})) {
         if (reg.device_id !== deviceId) {
           continue;
         }
         const id = reg.entity_id;
-        const st = this._hass.states[id];
+        const st = states[id];
         if (!st) {
           continue;
         }
@@ -758,7 +759,7 @@
     }
 
     _num(entityId, defaultPrecision) {
-      const st = entityId ? this._hass.states[entityId] : undefined;
+      const st = entityId ? (this._hass.states || {})[entityId] : undefined;
       if (!st || st.state === "unavailable" || st.state === "unknown") {
         return null;
       }
@@ -784,20 +785,101 @@
 
     // ------------------------------------------------------------ update --
     _update() {
+      // The card must never throw out of a hass/config update: an uncaught
+      // error makes Lovelace swap it for a red "Configuration error" card.
+      // Whatever happens (offline device, websocket reconnect, missing
+      // entities) we degrade to a safe offline render instead of crashing.
+      try {
+        this._render();
+      } catch (err) {
+        if (!this._loggedError) {
+          this._loggedError = true;
+          console.error(
+            "[sirio-pump-card] render failed — showing offline",
+            err
+          );
+        }
+        try {
+          this._renderOffline();
+        } catch (_e) {
+          /* keep the previous frame on screen as a last resort */
+        }
+      }
+    }
+
+    // Sticky role resolution: once we have identified the pump's entities we
+    // keep them even if they briefly go unavailable, so a Wi-Fi blip renders
+    // as "offline" rather than re-triggering the placeholder.
+    _ensureRoles() {
+      const haveCore = Boolean(
+        this._roles && this._roles.power && this._roles.pressure
+      );
+      if (haveCore && this._regRef === this._hass.entities) {
+        return;
+      }
+      const resolved = this._resolveRoles();
+      this._regRef = this._hass.entities;
+      if (!resolved) {
+        this._roles = null;
+        this._sig = null;
+      } else if (!this._roles || this._roles.deviceId !== resolved.deviceId) {
+        this._roles = resolved;
+        this._sig = null;
+      } else {
+        const merged = { ...this._roles, ...resolved };
+        if (JSON.stringify(merged) !== JSON.stringify(this._roles)) {
+          this._sig = null;
+        }
+        this._roles = merged;
+      }
+    }
+
+    _renderOffline() {
+      if (!this._el) {
+        this._build();
+      }
+      this.setAttribute("data-status", "offline");
+      const device =
+        this._roles && this._hass?.devices?.[this._roles.deviceId];
+      if (device) {
+        this._el.placeholder.hidden = true;
+        this._el.content.hidden = false;
+        this._el.name.textContent =
+          this._config?.name ||
+          device.name_by_user ||
+          device.name ||
+          this._t("pump");
+        this._el.stxt.textContent = this._t("offline");
+        this._el.power.hidden = true;
+        this._el.bigval.textContent = "—";
+        this._el.unit.textContent = "";
+        this._el.target.hidden = true;
+        this._el.alert.hidden = true;
+        this._el.val.style.strokeDashoffset = ARC_LEN.toFixed(2);
+        [...this._el.tiles, ...this._el.chips].forEach((b) => (b.hidden = true));
+        return;
+      }
+      this._el.content.hidden = true;
+      this._el.placeholder.hidden = false;
+      this._el.ptext.textContent = this._deviceId()
+        ? this._t("no_device")
+        : this._t("not_configured");
+    }
+
+    _render() {
       if (!this._hass || !this._config) {
         return;
       }
       if (!this._el) {
         this._build();
       }
-      if (!this._roles || this._regRef !== this._hass.entities) {
-        this._roles = this._resolveRoles();
-        this._regRef = this._hass.entities;
-        this._sig = null;
-      }
+      this._ensureRoles();
       const roles = this._roles;
 
-      if (!roles || (!roles.power && !roles.pressure)) {
+      const deviceKnown = Boolean(
+        roles && roles.deviceId && this._hass.devices?.[roles.deviceId]
+      );
+      if (!roles || (!roles.power && !roles.pressure && !deviceKnown)) {
         this._el.content.hidden = true;
         this._el.placeholder.hidden = false;
         this._el.ptext.textContent = this._deviceId()
