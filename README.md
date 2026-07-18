@@ -31,6 +31,11 @@ to the inverter's built-in web server on your LAN.
   DHCP-reserved) IP address. Verify you can open `http://<inverter-ip>/status.html`
   in a browser from the same network.
 
+> **Tested hardware:** developed and tested on a **Sirio Universal** inverter
+> with the WiNET module (firmware 0.17). Other Sirio models that carry the same
+> WiNET module (Entry / M-T / X4, …) expose the same local web API and are
+> expected to work, but are currently unverified — feedback is welcome.
+
 ## Installation
 
 ### Option A — HACS (recommended)
@@ -296,5 +301,5 @@ python -m venv .venv
 
 ## Disclaimer
 
-This is an unofficial integration, not affiliated with Italtecnica. Tested with
-WiNET firmware 0.17.
+This is an unofficial integration, not affiliated with Italtecnica. Tested on a
+**Sirio Universal** inverter with WiNET firmware 0.17.
