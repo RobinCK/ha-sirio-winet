@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/logo.png" alt="Italtecnica" width="320">
+  <img src="https://raw.githubusercontent.com/RobinCK/ha-sirio-winet/main/docs/logo.png" alt="Italtecnica" width="320">
 </p>
 
 # Sirio Pump Inverter (WiNET) — Home Assistant Integration
@@ -40,9 +40,16 @@ to the inverter's built-in web server on your LAN.
 
 ### Option A — HACS (recommended)
 
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=RobinCK&repository=ha-sirio-winet&category=integration)
+
+**One click:** press the badge above — it opens HACS with this repository already
+filled in; then click **Download** and restart Home Assistant. Prefer to add it
+by hand?
+
 1. Open **HACS** in Home Assistant.
 2. Click the three-dot menu (top right) → **Custom repositories**.
-3. Paste this repository URL, choose type **Integration**, click **Add**.
+3. Paste this repository URL (`https://github.com/RobinCK/ha-sirio-winet`),
+   choose type **Integration**, click **Add**.
 4. Search for **Sirio Pump Inverter (WiNET)** in HACS and click **Download**.
 5. Restart Home Assistant (**Settings → System → Restart**).
 
@@ -157,14 +164,14 @@ nothing to add under *Settings → Dashboards → Resources* and no separate HAC
 frontend repository to install.
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/card-desktop-dark.png">
-  <img alt="Sirio Pump Card on a desktop dashboard — running, standby and error states" src="docs/screenshots/card-desktop-light.png">
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/RobinCK/ha-sirio-winet/main/docs/screenshots/card-desktop-dark.png">
+  <img alt="Sirio Pump Card on a desktop dashboard — running, standby and error states" src="https://raw.githubusercontent.com/RobinCK/ha-sirio-winet/main/docs/screenshots/card-desktop-light.png">
 </picture>
 
 <p align="center">
-  <img alt="Sirio Pump Card on mobile — light theme" src="docs/screenshots/card-mobile-light.png" width="300">
+  <img alt="Sirio Pump Card on mobile — light theme" src="https://raw.githubusercontent.com/RobinCK/ha-sirio-winet/main/docs/screenshots/card-mobile-light.png" width="300">
   &nbsp;
-  <img alt="Sirio Pump Card on mobile — dark theme" src="docs/screenshots/card-mobile-dark.png" width="300">
+  <img alt="Sirio Pump Card on mobile — dark theme" src="https://raw.githubusercontent.com/RobinCK/ha-sirio-winet/main/docs/screenshots/card-mobile-dark.png" width="300">
 </p>
 
 What you get:
