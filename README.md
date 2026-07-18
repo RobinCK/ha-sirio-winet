@@ -266,18 +266,23 @@ keep working.
 
 ## Integration icon
 
-Home Assistant and HACS do not read integration icons from this repository —
-they serve them from the central
-[home-assistant/brands](https://github.com/home-assistant/brands) repository by
-integration domain (`sirio`). Ready-to-submit assets live in
-[`brands/custom_integrations/sirio`](brands/custom_integrations/sirio):
-`icon.png` (256×256), `icon@2x.png` (512×512) and dark-theme variants.
+The integration ships its brand icons **inline**, in
+[`custom_components/sirio/brand`](custom_components/sirio/brand): `icon.png`
+(256×256), `icon@2x.png` (512×512) and dark-theme variants.
 
-To get the icon displayed, copy that folder into a fork of
-`home-assistant/brands` as `custom_integrations/sirio/` and open a pull
-request. Once it is merged, the icon appears in Home Assistant and HACS
-automatically — no integration update or restart needed (allow up to a day for
-CDN/browser caches).
+Since **Home Assistant 2026.3** custom integrations serve their brand images
+locally through the
+[Brands Proxy API](https://developers.home-assistant.io/blog/2026/02/24/brands-proxy-api/)
+(`/api/brands/integration/sirio/icon.png`). No submission to the central
+`home-assistant/brands` repository is needed — that repository now auto-closes
+custom-integration pull requests in favor of this inline mechanism.
+
+The icon appears automatically once the integration is installed on Home
+Assistant 2026.3 or newer (older cores simply ignore it). If it does not show up
+right after an update, hard-refresh the browser — the proxy caches images with a
+stale-while-revalidate strategy. Note that, due to a known HACS bug, the HACS
+downloads panel may still show a placeholder for a while even though the
+integration itself shows the icon correctly.
 
 ## Development
 
