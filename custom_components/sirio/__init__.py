@@ -31,11 +31,14 @@ type SirioConfigEntry = ConfigEntry[SirioCoordinator]
 
 
 async def _async_register_resource(hass: HomeAssistant, url: str) -> bool:
-    """Ensure the card is listed in the Lovelace resource registry.
+    """Register the card as a Lovelace (storage-mode) module resource.
 
-    Unlike extra_js_url (baked into the service-worker-cached app shell),
-    resources are fetched dynamically on every dashboard load, so mobile
-    clients pick the card up after a plain page reload.
+    A real Lovelace resource is re-injected by the frontend on every load,
+    which is far more reliable on the mobile app than extra_js_url alone
+    (that one lives in the service-worker-cached app shell and can be lost when
+    the app restores a suspended web view — the usual cause of an intermittent
+    "Custom element not found: sirio-pump-card" on mobile). Returns True when
+    the resource registry contains the card afterwards.
     """
     lovelace = hass.data.get("lovelace")
     if lovelace is None:
@@ -48,14 +51,18 @@ async def _async_register_resource(hass: HomeAssistant, url: str) -> bool:
         resources = getattr(lovelace, "resources", None)
     if mode != "storage" or resources is None:
         return False
-    if not getattr(resources, "loaded", True):
+    # The collection must be loaded before we can inspect or mutate it.
+    if hasattr(resources, "async_get_info"):
+        await resources.async_get_info()
+    elif not getattr(resources, "loaded", False):
         await resources.async_load()
         resources.loaded = True
+    if not hasattr(resources, "async_items"):
+        return False
     for item in resources.async_items():
-        item_url = item.get("url", "")
-        if item_url.partition("?")[0] != CARD_URL:
+        if item.get("url", "").partition("?")[0] != CARD_URL:
             continue
-        if item_url != url:  # refresh the cache-busting version
+        if item.get("url") != url:  # refresh the cache-busting version
             await resources.async_update_item(item["id"], {"url": url})
         return True
     await resources.async_create_item({"res_type": "module", "url": url})
@@ -63,7 +70,7 @@ async def _async_register_resource(hass: HomeAssistant, url: str) -> bool:
 
 
 async def _async_register_card(hass: HomeAssistant) -> None:
-    """Serve the bundled Lovelace card and load it on every dashboard."""
+    """Serve the bundled Lovelace card and make sure it loads on dashboards."""
     card_path = str(Path(__file__).parent / "frontend" / CARD_FILENAME)
     if StaticPathConfig is not None and hasattr(
         hass.http, "async_register_static_paths"
@@ -73,19 +80,25 @@ async def _async_register_card(hass: HomeAssistant) -> None:
         )
     else:  # pre-2024.6 cores
         hass.http.register_static_path(CARD_URL, card_path, cache_headers=True)
+
     integration = await async_get_integration(hass, DOMAIN)
     versioned_url = f"{CARD_URL}?v={integration.version}"
+
     in_resources = False
     try:
         in_resources = await _async_register_resource(hass, versioned_url)
-    except Exception:  # noqa: BLE001 - registry APIs differ between cores
+    except Exception:  # noqa: BLE001 - resource registry APIs differ between cores
         _LOGGER.debug("Could not manage Lovelace resources", exc_info=True)
-    if not in_resources:
-        # YAML-mode dashboards (or very old cores): fall back to extra_js_url.
-        frontend.add_extra_js_url(hass, versioned_url)
+
+    # Always also expose it as an extra module URL. The card guards against
+    # double registration, so loading via both paths is harmless and gives the
+    # script two chances to run — important on the mobile app, where a single
+    # delivery path can be lost to a stale or restored web view.
+    frontend.add_extra_js_url(hass, versioned_url)
+
     _LOGGER.info(
-        "Sirio Pump Card registered at %s (lovelace resource: %s)",
-        CARD_URL,
+        "Sirio Pump Card registered at %s (lovelace storage resource: %s)",
+        versioned_url,
         in_resources,
     )
 

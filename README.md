@@ -269,6 +269,16 @@ keep working.
      *Site settings → Clear & reset* for the HA site; in the companion app,
      *Settings → Companion app → Debugging → Reset frontend cache*. The
      browser console should then show a `SIRIO-PUMP-CARD` banner.
+- **Intermittent "Custom element not found: sirio-pump-card" on the mobile
+  app** — the companion app can restore a suspended dashboard before the card
+  script has re-run. The integration registers the card as a Lovelace *module
+  resource*, which is the reliable delivery path; confirm it exists under
+  **Settings → Dashboards → ⋮ → Resources** (you should see
+  `/sirio/sirio-pump-card.js`) and **fully restart** Home Assistant after
+  updating. On the phone, fully close and reopen the app, or *Settings →
+  Companion app → Debugging → Reset frontend cache*. If the resource entry is
+  missing (e.g. YAML-mode dashboards), add it by hand: *Resources → + Add
+  Resource*, URL `/sirio/sirio-pump-card.js`, type **JavaScript Module**.
 - **"Cannot connect" during setup** — check that the IP is correct and that
   `http://<ip>/management.html` opens from the Home Assistant host's network.
 - **Entities become unavailable intermittently** — the WiNET Wi-Fi signal may be
