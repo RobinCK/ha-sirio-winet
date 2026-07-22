@@ -8,7 +8,7 @@
 (() => {
   const CARD_TAG = "sirio-pump-card";
   const EDITOR_TAG = "sirio-pump-card-editor";
-  const CARD_VERSION = "0.2.4";
+  const CARD_VERSION = "0.2.7";
 
   if (customElements.get(CARD_TAG)) {
     return;

@@ -269,16 +269,21 @@ keep working.
      *Site settings → Clear & reset* for the HA site; in the companion app,
      *Settings → Companion app → Debugging → Reset frontend cache*. The
      browser console should then show a `SIRIO-PUMP-CARD` banner.
-- **Intermittent "Custom element not found: sirio-pump-card" on the mobile
-  app** — the companion app can restore a suspended dashboard before the card
-  script has re-run. The integration registers the card as a Lovelace *module
-  resource*, which is the reliable delivery path; confirm it exists under
-  **Settings → Dashboards → ⋮ → Resources** (you should see
-  `/sirio/sirio-pump-card.js`) and **fully restart** Home Assistant after
-  updating. On the phone, fully close and reopen the app, or *Settings →
-  Companion app → Debugging → Reset frontend cache*. If the resource entry is
-  missing (e.g. YAML-mode dashboards), add it by hand: *Resources → + Add
-  Resource*, URL `/sirio/sirio-pump-card.js`, type **JavaScript Module**.
+- **Intermittent "Custom element not found: sirio-pump-card" (worst on
+  mobile, often alternating between refreshes)** — two Home Assistant frontend
+  behaviors cause this: the service worker serves the app shell one revision
+  stale, and Lovelace imports each resource only once per page with no retry,
+  so a single failed request (e.g. a 404 in the first seconds after a
+  restart) kills the card until a full reload. Since v0.2.7 the integration
+  counters both: the card is delivered purely as Lovelace *module resources*
+  (fetched fresh on every page load, bypassing the stale shell) together with
+  a tiny loader that retries a failed import with backoff and re-checks when
+  the app returns from background. Verify under **Settings → Dashboards → ⋮ →
+  Resources** that both `/sirio/sirio-pump-card.js` and
+  `/sirio/sirio-pump-card-loader.js` are listed. Right after updating, one
+  more hard refresh (or app *Reset frontend cache*) may be needed while old
+  cached shells expire. YAML-mode dashboards: add both URLs as **JavaScript
+  Module** resources manually.
 - **"Cannot connect" during setup** — check that the IP is correct and that
   `http://<ip>/management.html` opens from the Home Assistant host's network.
 - **Entities become unavailable intermittently** — the WiNET Wi-Fi signal may be

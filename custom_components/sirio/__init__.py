@@ -8,6 +8,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST, CONF_NAME, Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.start import async_at_start
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.loader import async_get_integration
 
@@ -25,33 +26,43 @@ _LOGGER = logging.getLogger(__name__)
 PLATFORMS = [Platform.BINARY_SENSOR, Platform.SENSOR, Platform.SWITCH]
 
 CARD_FILENAME = "sirio-pump-card.js"
+LOADER_FILENAME = "sirio-pump-card-loader.js"
 CARD_URL = f"/{DOMAIN}/{CARD_FILENAME}"
+LOADER_URL = f"/{DOMAIN}/{LOADER_FILENAME}"
 
 type SirioConfigEntry = ConfigEntry[SirioCoordinator]
 
 
-async def _async_register_resource(hass: HomeAssistant, url: str) -> bool:
-    """Register the card as a Lovelace (storage-mode) module resource.
-
-    A real Lovelace resource is re-injected by the frontend on every load,
-    which is far more reliable on the mobile app than extra_js_url alone
-    (that one lives in the service-worker-cached app shell and can be lost when
-    the app restores a suspended web view — the usual cause of an intermittent
-    "Custom element not found: sirio-pump-card" on mobile). Returns True when
-    the resource registry contains the card afterwards.
-    """
+def _lovelace_resources(hass: HomeAssistant):
+    """Return the storage-mode Lovelace resource collection, or None."""
     lovelace = hass.data.get("lovelace")
     if lovelace is None:
-        return False
-    if isinstance(lovelace, dict):  # pre-2024 cores
+        return None
+    if isinstance(lovelace, dict):  # pre-2025.2 cores
         mode = lovelace.get("mode")
         resources = lovelace.get("resources")
     else:
         mode = getattr(lovelace, "mode", None)
         resources = getattr(lovelace, "resources", None)
     if mode != "storage" or resources is None:
+        return None
+    return resources
+
+
+async def _async_register_resource(hass: HomeAssistant, url: str) -> bool:
+    """Ensure exactly one Lovelace module resource for this base URL.
+
+    Lovelace resources are re-imported by the frontend on every full page
+    load, which is far more reliable on the mobile app than extra_js_url
+    alone (that one is baked into the service-worker-cached app shell).
+    Updates the cache-busting version in place and removes stray duplicates.
+    Returns True when the registry contains the resource afterwards.
+    """
+    resources = _lovelace_resources(hass)
+    if resources is None:
         return False
-    # The collection must be loaded before we can inspect or mutate it.
+    # The collection must be loaded before we may inspect or mutate it —
+    # async_get_info() performs the same lazy load the websocket API uses.
     if hasattr(resources, "async_get_info"):
         await resources.async_get_info()
     elif not getattr(resources, "loaded", False):
@@ -59,46 +70,81 @@ async def _async_register_resource(hass: HomeAssistant, url: str) -> bool:
         resources.loaded = True
     if not hasattr(resources, "async_items"):
         return False
-    for item in resources.async_items():
-        if item.get("url", "").partition("?")[0] != CARD_URL:
+    base_url = url.partition("?")[0]
+    found = False
+    for item in list(resources.async_items()):
+        if item.get("url", "").partition("?")[0] != base_url:
             continue
+        if found:  # stray duplicate from an older version — clean it up
+            await resources.async_delete_item(item["id"])
+            continue
+        found = True
         if item.get("url") != url:  # refresh the cache-busting version
             await resources.async_update_item(item["id"], {"url": url})
-        return True
-    await resources.async_create_item({"res_type": "module", "url": url})
+    if not found:
+        await resources.async_create_item({"res_type": "module", "url": url})
     return True
 
 
 async def _async_register_card(hass: HomeAssistant) -> None:
     """Serve the bundled Lovelace card and make sure it loads on dashboards."""
-    card_path = str(Path(__file__).parent / "frontend" / CARD_FILENAME)
+    frontend_dir = Path(__file__).parent / "frontend"
+    paths = [
+        (CARD_URL, str(frontend_dir / CARD_FILENAME)),
+        (LOADER_URL, str(frontend_dir / LOADER_FILENAME)),
+    ]
     if StaticPathConfig is not None and hasattr(
         hass.http, "async_register_static_paths"
     ):
         await hass.http.async_register_static_paths(
-            [StaticPathConfig(CARD_URL, card_path, cache_headers=True)]
+            [StaticPathConfig(url, path, cache_headers=True) for url, path in paths]
         )
     else:  # pre-2024.6 cores
-        hass.http.register_static_path(CARD_URL, card_path, cache_headers=True)
+        for url, path in paths:
+            hass.http.register_static_path(url, path, cache_headers=True)
 
     integration = await async_get_integration(hass, DOMAIN)
-    versioned_url = f"{CARD_URL}?v={integration.version}"
+    versioned_card = f"{CARD_URL}?v={integration.version}"
+    versioned_loader = f"{LOADER_URL}?v={integration.version}"
+
+    async def _register_resources() -> bool:
+        # Two module resources: the card itself for the fast common case, and
+        # a tiny retrying loader that recovers when the one-shot import of the
+        # card fails (404 right after a restart, flaky Wi-Fi on mobile) or
+        # when the app returns from background. The card guards against
+        # double definition, so overlapping deliveries are harmless.
+        ok = await _async_register_resource(hass, versioned_card)
+        return await _async_register_resource(hass, versioned_loader) and ok
 
     in_resources = False
     try:
-        in_resources = await _async_register_resource(hass, versioned_url)
+        in_resources = await _register_resources()
     except Exception:  # noqa: BLE001 - resource registry APIs differ between cores
         _LOGGER.debug("Could not manage Lovelace resources", exc_info=True)
 
-    # Always also expose it as an extra module URL. The card guards against
-    # double registration, so loading via both paths is harmless and gives the
-    # script two chances to run — important on the mobile app, where a single
-    # delivery path can be lost to a stale or restored web view.
-    frontend.add_extra_js_url(hass, versioned_url)
+    if in_resources:
+        # Lovelace resources are fetched fresh on every page load, bypassing
+        # the service-worker-cached app shell entirely. Re-assert once HA is
+        # fully started to cover any startup-ordering edge case.
+        async def _reassert(_hass: HomeAssistant) -> None:
+            try:
+                await _register_resources()
+            except Exception:  # noqa: BLE001
+                _LOGGER.debug("Lovelace resource re-assert failed", exc_info=True)
+
+        async_at_start(hass, _reassert)
+    else:
+        # YAML-mode dashboards (or cores without the resource registry): fall
+        # back to extra_js_url. Deliberately NOT used otherwise — these URLs
+        # are baked into the service-worker-cached index.html, which is served
+        # one revision stale (StaleWhileRevalidate), so every version bump
+        # would alternate good/bad shells between refreshes.
+        frontend.add_extra_js_url(hass, versioned_card)
+        frontend.add_extra_js_url(hass, versioned_loader)
 
     _LOGGER.info(
-        "Sirio Pump Card registered at %s (lovelace storage resource: %s)",
-        versioned_url,
+        "Sirio Pump Card registered at %s (lovelace storage resources: %s)",
+        versioned_card,
         in_resources,
     )
 
