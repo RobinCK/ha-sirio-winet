@@ -105,16 +105,16 @@ async def _async_register_card(hass: HomeAssistant) -> None:
 
     integration = await async_get_integration(hass, DOMAIN)
     versioned_card = f"{CARD_URL}?v={integration.version}"
-    versioned_loader = f"{LOADER_URL}?v={integration.version}"
 
     async def _register_resources() -> bool:
-        # Two module resources: the card itself for the fast common case, and
-        # a tiny retrying loader that recovers when the one-shot import of the
-        # card fails (404 right after a restart, flaky Wi-Fi on mobile) or
-        # when the app returns from background. The card guards against
-        # double definition, so overlapping deliveries are harmless.
+        # Two module resources: the version-busted card itself for the fast
+        # common case, and the retrying loader at a STABLE url — long-lived
+        # in the browser HTTP cache, so it still runs when a session starts
+        # while HA is unreachable and can heal the page once the network is
+        # back. The card guards against double definition, so overlapping
+        # deliveries are harmless.
         ok = await _async_register_resource(hass, versioned_card)
-        return await _async_register_resource(hass, versioned_loader) and ok
+        return await _async_register_resource(hass, LOADER_URL) and ok
 
     in_resources = False
     try:
@@ -134,13 +134,15 @@ async def _async_register_card(hass: HomeAssistant) -> None:
 
         async_at_start(hass, _reassert)
     else:
-        # YAML-mode dashboards (or cores without the resource registry): fall
-        # back to extra_js_url. Deliberately NOT used otherwise — these URLs
-        # are baked into the service-worker-cached index.html, which is served
-        # one revision stale (StaleWhileRevalidate), so every version bump
-        # would alternate good/bad shells between refreshes.
+        # YAML-mode dashboards (or cores without the resource registry): the
+        # version-busted card must come through the shell as well.
         frontend.add_extra_js_url(hass, versioned_card)
-        frontend.add_extra_js_url(hass, versioned_loader)
+
+    # The stable loader URL is safe to bake into the app shell: it never
+    # changes between versions, so the service-worker-cached index.html stays
+    # byte-identical (no good/bad shell alternation) while every session gets
+    # an independent second chance to load the card.
+    frontend.add_extra_js_url(hass, LOADER_URL)
 
     _LOGGER.info(
         "Sirio Pump Card registered at %s (lovelace storage resources: %s)",

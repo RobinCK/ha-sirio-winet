@@ -3,7 +3,7 @@
 import pytest
 from homeassistant.setup import async_setup_component
 
-from custom_components.sirio import CARD_URL, _async_register_resource
+from custom_components.sirio import CARD_URL, LOADER_URL, _async_register_resource
 
 
 @pytest.fixture(autouse=True)
@@ -90,6 +90,27 @@ async def test_register_cleans_up_stray_duplicates(hass, hass_storage):
     ours = [u for u in urls if u.partition("?")[0] == CARD_URL]
     assert ours == [f"{CARD_URL}?v=9"]
     assert "/hacsfiles/mushroom.js" in urls
+
+
+async def test_loader_migrates_to_stable_url(hass, hass_storage):
+    """A versioned loader entry left by 0.2.7 becomes the stable URL."""
+    hass_storage["lovelace_resources"] = {
+        "version": 1,
+        "minor_version": 1,
+        "key": "lovelace_resources",
+        "data": {
+            "items": [
+                {"id": "old", "type": "module", "url": f"{LOADER_URL}?v=0.2.7"},
+            ]
+        },
+    }
+    assert await async_setup_component(hass, "lovelace", {})
+    await hass.async_block_till_done()
+
+    assert await _async_register_resource(hass, LOADER_URL) is True
+
+    ours = [u for u in _urls(hass) if u.partition("?")[0] == LOADER_URL]
+    assert ours == [LOADER_URL]
 
 
 async def test_register_on_unloaded_collection(hass, hass_storage):

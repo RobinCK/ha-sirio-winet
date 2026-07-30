@@ -274,16 +274,21 @@ keep working.
   behaviors cause this: the service worker serves the app shell one revision
   stale, and Lovelace imports each resource only once per page with no retry,
   so a single failed request (e.g. a 404 in the first seconds after a
-  restart) kills the card until a full reload. Since v0.2.7 the integration
-  counters both: the card is delivered purely as Lovelace *module resources*
-  (fetched fresh on every page load, bypassing the stale shell) together with
-  a tiny loader that retries a failed import with backoff and re-checks when
-  the app returns from background. Verify under **Settings → Dashboards → ⋮ →
-  Resources** that both `/sirio/sirio-pump-card.js` and
+  restart) kills the card until a full reload. Since v0.2.8 the integration
+  counters both: the version-busted card is delivered as a Lovelace *module
+  resource* (fetched fresh on every page load, bypassing the stale shell),
+  and a tiny loader served from a **stable URL** (long-lived in the browser
+  cache, so it runs even when a session starts while HA is unreachable)
+  retries a failed import with backoff and starts a fresh retry round
+  whenever the app returns to the foreground or the network comes back
+  (`visibilitychange` / `pageshow` / `online`). Verify under **Settings →
+  Dashboards → ⋮ → Resources** that both `/sirio/sirio-pump-card.js?v=…` and
   `/sirio/sirio-pump-card-loader.js` are listed. Right after updating, one
   more hard refresh (or app *Reset frontend cache*) may be needed while old
-  cached shells expire. YAML-mode dashboards: add both URLs as **JavaScript
-  Module** resources manually.
+  cached shells expire. Note: the card *editor dialog* checks for the element
+  exactly once with a 2-second budget (frontend behavior) — if it was opened
+  while the card was still loading, close and reopen it. YAML-mode
+  dashboards: add both URLs as **JavaScript Module** resources manually.
 - **"Cannot connect" during setup** — check that the IP is correct and that
   `http://<ip>/management.html` opens from the Home Assistant host's network.
 - **Entities become unavailable intermittently** — the WiNET Wi-Fi signal may be
